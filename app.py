@@ -4,13 +4,14 @@ from openai import OpenAI
 from reportlab.pdfgen import canvas
 import tempfile
 
-# ==============================
+# ===============================
 # PASSWORD PROTECTION
-# ==============================
+# ===============================
 
 PASSWORD = "clinicdemo"
 
 def check_password():
+
     def password_entered():
         if st.session_state["password"] == PASSWORD:
             st.session_state["password_correct"] = True
@@ -18,12 +19,17 @@ def check_password():
             st.session_state["password_correct"] = False
 
     if "password_correct" not in st.session_state:
+
+        st.title("AI Smart Clinic Demo")
         st.text_input("Enter Demo Password", type="password", on_change=password_entered, key="password")
         return False
+
     elif not st.session_state["password_correct"]:
+
         st.text_input("Enter Demo Password", type="password", on_change=password_entered, key="password")
         st.error("Incorrect Password")
         return False
+
     else:
         return True
 
@@ -31,46 +37,54 @@ def check_password():
 if not check_password():
     st.stop()
 
-# ==============================
-# OPENROUTER AI CLIENT
-# ==============================
+# ===============================
+# OPENROUTER CLIENT
+# ===============================
 
 client = OpenAI(
     api_key=st.secrets["OPENROUTER_API_KEY"],
     base_url="https://openrouter.ai/api/v1"
 )
 
-# ==============================
+# ===============================
 # PAGE SETTINGS
-# ==============================
+# ===============================
 
 st.set_page_config(page_title="AI Smart Clinic", layout="wide")
 
 st.title("🏥 AI Smart Clinic")
 
 st.markdown("""
-AI-powered assistant designed to help clinics and hospitals improve patient intake,
-analyze medical reports, check prescription safety, and monitor hospital operations.
+AI-powered hospital assistant helping clinics improve:
+
+• Patient Intake & Triage  
+• Clinical Documentation  
+• Medical Report Analysis  
+• Prescription Safety  
+• Hospital Operations  
+• Patient Follow-ups  
 """)
 
-# ==============================
+# ===============================
 # TABS
-# ==============================
+# ===============================
 
-tab1, tab2, tab3, tab4 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
 "Patient Intake",
+"Medical Scribe",
 "Report Analyzer",
 "Prescription Safety",
-"Admin Dashboard"
+"Admin Dashboard",
+"Patient Follow-up"
 ])
 
-# ==============================
+# ===============================
 # TAB 1 — PATIENT INTAKE
-# ==============================
+# ===============================
 
 with tab1:
 
-    st.header("AI Patient Intake Assistant")
+    st.header("AI Patient Intake & Triage")
 
     age = st.number_input("Age", 1, 120)
     gender = st.selectbox("Gender", ["Male", "Female", "Other"])
@@ -85,7 +99,7 @@ with tab1:
         Symptoms: {symptoms}
         Medical history: {history}
 
-        Generate a short clinical summary, possible causes and suggested tests.
+        Generate a medical summary including possible causes and suggested tests.
         """
 
         response = client.chat.completions.create(
@@ -95,13 +109,13 @@ with tab1:
 
         result = response.choices[0].message.content
 
-        st.subheader("AI Generated Summary")
+        st.subheader("Patient Summary")
         st.write(result)
 
         # TRIAGE SEVERITY
 
         severity_prompt = f"""
-        Based on these symptoms determine severity: Mild, Moderate, or Urgent.
+        Based on these symptoms determine severity level: Mild, Moderate, or Urgent.
 
         Symptoms:
         {symptoms}
@@ -131,16 +145,44 @@ with tab1:
 
             with open(temp_file.name, "rb") as file:
                 st.download_button(
-                    label="Download Patient Report",
+                    label="Download Patient Summary",
                     data=file,
                     file_name="patient_summary.pdf"
                 )
 
-# ==============================
-# TAB 2 — REPORT ANALYZER
-# ==============================
+# ===============================
+# TAB 2 — MEDICAL SCRIBE
+# ===============================
 
 with tab2:
+
+    st.header("AI Medical Scribe")
+
+    notes = st.text_area("Doctor Dictation")
+
+    if st.button("Generate Clinical Notes"):
+
+        prompt = f"""
+        Convert this doctor dictation into structured clinical notes:
+
+        {notes}
+        """
+
+        response = client.chat.completions.create(
+            model="openrouter/auto",
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        result = response.choices[0].message.content
+
+        st.subheader("Clinical Notes")
+        st.write(result)
+
+# ===============================
+# TAB 3 — REPORT ANALYZER
+# ===============================
+
+with tab3:
 
     st.header("AI Medical Report Analyzer")
 
@@ -161,14 +203,14 @@ with tab2:
 
         result = response.choices[0].message.content
 
-        st.subheader("AI Report Analysis")
+        st.subheader("Report Analysis")
         st.write(result)
 
-# ==============================
-# TAB 3 — PRESCRIPTION CHECKER
-# ==============================
+# ===============================
+# TAB 4 — PRESCRIPTION CHECK
+# ===============================
 
-with tab3:
+with tab4:
 
     st.header("Prescription Safety Checker")
 
@@ -177,7 +219,7 @@ with tab3:
     if st.button("Check Prescription"):
 
         prompt = f"""
-        Check the following medicines for interactions or safety warnings.
+        Check the following medicines for interactions, risks, or safety warnings.
 
         {drugs}
         """
@@ -192,11 +234,11 @@ with tab3:
         st.subheader("Safety Analysis")
         st.write(result)
 
-# ==============================
-# TAB 4 — ADMIN DASHBOARD
-# ==============================
+# ===============================
+# TAB 5 — ADMIN DASHBOARD
+# ===============================
 
-with tab4:
+with tab5:
 
     st.header("Hospital Admin Dashboard")
 
@@ -218,3 +260,34 @@ with tab4:
     st.write("### Pending Lab Reports")
 
     st.warning("14 lab reports pending more than 2 hours")
+
+# ===============================
+# TAB 6 — PATIENT FOLLOW-UP
+# ===============================
+
+with tab6:
+
+    st.header("AI Patient Follow-up Generator")
+
+    patient_name = st.text_input("Patient Name")
+    condition = st.text_area("Condition or Follow-up Reason")
+
+    if st.button("Generate Follow-up Message"):
+
+        prompt = f"""
+        Write a polite follow-up message for patient {patient_name} regarding:
+
+        {condition}
+
+        The message should be suitable for WhatsApp.
+        """
+
+        response = client.chat.completions.create(
+            model="openrouter/auto",
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        result = response.choices[0].message.content
+
+        st.subheader("Follow-up Message")
+        st.write(result)
