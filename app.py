@@ -3,16 +3,17 @@ import pandas as pd
 from openai import OpenAI
 from reportlab.pdfgen import canvas
 import tempfile
+import random
 
-# =========================
+# ---------------------------
 # PAGE CONFIG
-# =========================
+# ---------------------------
 
 st.set_page_config(page_title="AI Smart Clinic", layout="wide")
 
-# =========================
-# PASSWORD PROTECTION
-# =========================
+# ---------------------------
+# PASSWORD
+# ---------------------------
 
 PASSWORD = "clinicdemo"
 
@@ -25,12 +26,16 @@ def check_password():
             st.session_state["password_correct"] = False
 
     if "password_correct" not in st.session_state:
-        st.title("AI Smart Clinic Demo")
-        st.text_input("Enter Demo Password", type="password", on_change=password_entered, key="password")
+
+        st.title("🏥 AI Smart Clinic")
+        st.text_input("Enter Demo Password", type="password",
+                      on_change=password_entered, key="password")
         return False
 
     elif not st.session_state["password_correct"]:
-        st.text_input("Enter Demo Password", type="password", on_change=password_entered, key="password")
+
+        st.text_input("Enter Demo Password", type="password",
+                      on_change=password_entered, key="password")
         st.error("Incorrect Password")
         return False
 
@@ -41,275 +46,303 @@ def check_password():
 if not check_password():
     st.stop()
 
-# =========================
+# ---------------------------
 # OPENROUTER CLIENT
-# =========================
+# ---------------------------
 
 client = OpenAI(
     api_key=st.secrets["OPENROUTER_API_KEY"],
     base_url="https://openrouter.ai/api/v1"
 )
 
-# =========================
+# ---------------------------
 # HEADER
-# =========================
+# ---------------------------
 
 st.title("🏥 AI Smart Clinic")
-st.caption("Intelligent Clinical Decision Support System")
+st.caption("AI Powered Clinical Decision Support System")
 
-st.info("Demo Version — For demonstration only. Not for clinical use.")
+st.info("Demo Version — Not for real medical use")
 
 st.divider()
 
-# =========================
+# ---------------------------
 # KPI DASHBOARD
-# =========================
+# ---------------------------
 
-col1, col2, col3, col4 = st.columns(4)
+c1, c2, c3, c4 = st.columns(4)
 
-col1.metric("Patients Today", "86")
-col2.metric("Avg Wait Time", "14 min")
-col3.metric("Bed Occupancy", "79%")
-col4.metric("Pending Reports", "12")
+c1.metric("Patients Today", "86")
+c2.metric("Avg Wait Time", "14 min")
+c3.metric("Bed Occupancy", "79%")
+c4.metric("Pending Reports", "12")
 
 st.divider()
 
-# =========================
+# ---------------------------
 # USER ROLE
-# =========================
+# ---------------------------
 
-mode = st.sidebar.selectbox(
-"Select User Role",
+role = st.sidebar.selectbox(
+"Select Role",
 ["Doctor","Admin","Nurse"]
 )
 
-# =========================
+# ---------------------------
 # TABS
-# =========================
+# ---------------------------
 
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-"🩺 Patient Intake",
-"🧠 Medical Scribe",
-"🧪 Report Analyzer",
-"💊 Prescription Safety",
-"📊 Admin Dashboard",
-"📩 Patient Follow-up"
+tabs = st.tabs([
+"Patient Intake",
+"Medical Scribe",
+"Report Analyzer",
+"Prescription Safety",
+"Admin Dashboard",
+"OPD Prediction",
+"Bed Management",
+"Appointment Optimizer",
+"Patient Follow-up"
 ])
 
-# =========================
-# TAB 1 PATIENT INTAKE
-# =========================
+# --------------------------------------------------
+# PATIENT INTAKE
+# --------------------------------------------------
 
-with tab1:
+with tabs[0]:
 
-    st.header("Patient Intake & AI Triage")
+    st.header("🩺 Patient Intake & AI Triage")
 
     age = st.number_input("Age",1,120)
+
     gender = st.selectbox("Gender",["Male","Female","Other"])
 
     symptoms = st.text_area("Symptoms")
 
     history = st.text_area("Medical History")
 
-    if st.button("Generate Patient Summary"):
+    if st.button("Generate Summary"):
 
         prompt=f"""
         Patient age {age}
-        Gender {gender}
+        gender {gender}
 
-        Symptoms:
-        {symptoms}
+        symptoms {symptoms}
 
-        History:
-        {history}
+        history {history}
 
-        Generate medical summary, possible causes and suggested tests.
+        generate medical summary and possible diagnosis
         """
 
         response = client.chat.completions.create(
-            model="openrouter/auto",
-            messages=[{"role":"user","content":prompt}]
+        model="openrouter/auto",
+        messages=[{"role":"user","content":prompt}]
         )
 
         result=response.choices[0].message.content
 
-        with st.expander("View AI Medical Summary"):
-
-            st.write(result)
+        st.write(result)
 
         st.progress(0.82)
-        st.caption("AI Confidence Score: 82%")
 
-        if st.button("Generate Patient PDF"):
+        if st.button("Download PDF"):
 
-            temp_file = tempfile.NamedTemporaryFile(delete=False)
+            temp=tempfile.NamedTemporaryFile(delete=False)
 
-            c = canvas.Canvas(temp_file.name)
+            c=canvas.Canvas(temp.name)
 
-            c.drawString(100,750,"AI Smart Clinic Patient Summary")
+            c.drawString(100,750,"Patient Summary")
+
             c.drawString(100,720,result[:800])
 
             c.save()
 
-            with open(temp_file.name,"rb") as f:
+            with open(temp.name,"rb") as f:
 
                 st.download_button(
-                    label="Download Summary PDF",
-                    data=f,
-                    file_name="patient_summary.pdf"
+                "Download",
+                f,
+                file_name="summary.pdf"
                 )
 
-# =========================
-# TAB 2 MEDICAL SCRIBE
-# =========================
+# --------------------------------------------------
+# MEDICAL SCRIBE
+# --------------------------------------------------
 
-with tab2:
+with tabs[1]:
 
-    st.header("AI Medical Scribe")
+    st.header("🧠 AI Medical Scribe")
 
     notes = st.text_area("Doctor Dictation")
 
-    if st.button("Generate Clinical Notes"):
+    if st.button("Generate Notes"):
 
-        prompt=f"""
-        Convert doctor dictation into structured clinical notes
-
-        {notes}
-        """
+        prompt=f"convert this into structured clinical notes {notes}"
 
         response = client.chat.completions.create(
-            model="openrouter/auto",
-            messages=[{"role":"user","content":prompt}]
+        model="openrouter/auto",
+        messages=[{"role":"user","content":prompt}]
         )
 
-        result=response.choices[0].message.content
-
-        with st.expander("Clinical Notes"):
-
-            st.write(result)
+        st.write(response.choices[0].message.content)
 
         st.progress(0.88)
-        st.caption("AI Confidence Score: 88%")
 
-# =========================
-# TAB 3 REPORT ANALYZER
-# =========================
+# --------------------------------------------------
+# REPORT ANALYZER
+# --------------------------------------------------
 
-with tab3:
+with tabs[2]:
 
-    st.header("AI Medical Report Analyzer")
+    st.header("🧪 Medical Report Analyzer")
 
-    report = st.text_area("Paste Lab Report Values")
+    report = st.text_area("Paste Lab Results")
 
-    if st.button("Analyze Report"):
+    if st.button("Analyze"):
 
-        prompt=f"""
-        Analyze these medical lab results and highlight abnormalities
-
-        {report}
-        """
+        prompt=f"analyze medical lab report {report}"
 
         response = client.chat.completions.create(
-            model="openrouter/auto",
-            messages=[{"role":"user","content":prompt}]
+        model="openrouter/auto",
+        messages=[{"role":"user","content":prompt}]
         )
 
-        result=response.choices[0].message.content
-
-        with st.expander("Report Analysis"):
-
-            st.write(result)
+        st.write(response.choices[0].message.content)
 
         st.progress(0.84)
-        st.caption("AI Confidence Score: 84%")
 
-# =========================
-# TAB 4 PRESCRIPTION CHECK
-# =========================
+# --------------------------------------------------
+# PRESCRIPTION CHECK
+# --------------------------------------------------
 
-with tab4:
+with tabs[3]:
 
-    st.header("Prescription Safety Checker")
+    st.header("💊 Prescription Safety")
 
     meds = st.text_area("Enter Medicines")
 
-    if st.button("Check Drug Interaction"):
+    if st.button("Check Interaction"):
 
-        prompt=f"""
-        Check these medicines for interactions or safety risks
-
-        {meds}
-        """
+        prompt=f"check drug interaction {meds}"
 
         response = client.chat.completions.create(
-            model="openrouter/auto",
-            messages=[{"role":"user","content":prompt}]
+        model="openrouter/auto",
+        messages=[{"role":"user","content":prompt}]
         )
 
-        result=response.choices[0].message.content
+        st.write(response.choices[0].message.content)
 
-        with st.expander("Drug Safety Analysis"):
+        st.error("⚠ Possible interaction detected")
 
-            st.write(result)
+# --------------------------------------------------
+# ADMIN DASHBOARD
+# --------------------------------------------------
 
-        st.error("⚠ Potential interaction detected")
+with tabs[4]:
 
-# =========================
-# TAB 5 ADMIN DASHBOARD
-# =========================
+    st.header("📊 Hospital Dashboard")
 
-with tab5:
+    queue=pd.DataFrame({
 
-    st.header("Hospital Operations Dashboard")
-
-    st.subheader("Live Patient Queue")
-
-    queue = pd.DataFrame({
     "Patient":["R Sharma","A Khan","M Gupta","S Patel"],
-    "Department":["Cardiology","General","Orthopedics","Dermatology"],
+    "Department":["Cardiology","General","Ortho","Dermatology"],
     "Wait Time":["12 min","8 min","5 min","20 min"]
+
     })
 
     st.dataframe(queue)
 
-    st.subheader("OPD Traffic")
+    opd=pd.DataFrame({
 
-    opd = pd.DataFrame({
     "Hour":["8AM","9AM","10AM","11AM","12PM"],
     "Patients":[5,18,30,22,14]
+
     })
 
     st.bar_chart(opd.set_index("Hour"))
 
-    st.warning("⚠ High patient load detected in Cardiology")
+# --------------------------------------------------
+# OPD PREDICTION
+# --------------------------------------------------
 
-# =========================
-# TAB 6 PATIENT FOLLOWUP
-# =========================
+with tabs[5]:
 
-with tab6:
+    st.header("AI OPD Queue Prediction")
 
-    st.header("AI Patient Follow-up Generator")
+    tomorrow=random.randint(80,140)
 
-    name = st.text_input("Patient Name")
+    st.metric("Predicted Patients Tomorrow",tomorrow)
 
-    reason = st.text_area("Follow-up Reason")
+    st.warning("High load expected in Cardiology")
 
-    if st.button("Generate Follow-up Message"):
+# --------------------------------------------------
+# BED MANAGEMENT
+# --------------------------------------------------
 
-        prompt=f"""
-        Write a polite followup message for patient {name}
+with tabs[6]:
 
-        reason: {reason}
+    st.header("Bed Management System")
 
-        The message should be suitable for WhatsApp
-        """
+    beds=120
+
+    occupied=random.randint(80,110)
+
+    available=beds-occupied
+
+    st.metric("Total Beds",beds)
+
+    st.metric("Occupied Beds",occupied)
+
+    st.metric("Available Beds",available)
+
+# --------------------------------------------------
+# APPOINTMENT OPTIMIZER
+# --------------------------------------------------
+
+with tabs[7]:
+
+    st.header("AI Appointment Optimizer")
+
+    doctor=st.selectbox("Select Doctor",
+
+    ["Cardiology","Orthopedic","Dermatology","General"])
+
+    if st.button("Suggest Slots"):
+
+        slots=[
+
+        "10:30 AM",
+
+        "11:15 AM",
+
+        "12:40 PM",
+
+        "3:00 PM"
+
+        ]
+
+        st.write("Recommended Slots")
+
+        st.write(slots)
+
+# --------------------------------------------------
+# FOLLOW UP
+# --------------------------------------------------
+
+with tabs[8]:
+
+    st.header("📩 Patient Follow-up")
+
+    name=st.text_input("Patient Name")
+
+    reason=st.text_area("Follow up reason")
+
+    if st.button("Generate Message"):
+
+        prompt=f"write whatsapp follow up message for {name} regarding {reason}"
 
         response = client.chat.completions.create(
-            model="openrouter/auto",
-            messages=[{"role":"user","content":prompt}]
+        model="openrouter/auto",
+        messages=[{"role":"user","content":prompt}]
         )
 
-        result=response.choices[0].message.content
-
-        st.success(result)
+        st.success(response.choices[0].message.content)
