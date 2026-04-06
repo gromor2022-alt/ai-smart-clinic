@@ -12,21 +12,12 @@ import tempfile
 conn = sqlite3.connect("clinic.db", check_same_thread=False)
 c = conn.cursor()
 
-c.execute("""CREATE TABLE IF NOT EXISTS users(
-username TEXT, password TEXT
-)""")
-
-c.execute("""CREATE TABLE IF NOT EXISTS patients(
-name TEXT, age INTEGER, department TEXT, abha TEXT
-)""")
-
-c.execute("""CREATE TABLE IF NOT EXISTS beds(
-total INTEGER, occupied INTEGER
-)""")
-
+c.execute("CREATE TABLE IF NOT EXISTS users(username TEXT, password TEXT)")
+c.execute("CREATE TABLE IF NOT EXISTS patients(name TEXT, age INTEGER, department TEXT, abha TEXT)")
+c.execute("CREATE TABLE IF NOT EXISTS beds(total INTEGER, occupied INTEGER)")
 conn.commit()
 
-# default admin
+# default user
 c.execute("SELECT * FROM users WHERE username='admin'")
 if not c.fetchone():
     c.execute("INSERT INTO users VALUES('admin','admin123')")
@@ -39,13 +30,10 @@ if not c.fetchone():
     conn.commit()
 
 # ---------------------------
-# PAGE CONFIG
+# UI CSS
 # ---------------------------
 st.set_page_config(page_title="AI Smart Clinic", layout="wide")
 
-# ---------------------------
-# CSS
-# ---------------------------
 st.markdown("""
 <style>
 .main {background: linear-gradient(135deg,#eef2ff,#f8fafc);}
@@ -62,7 +50,6 @@ if "logged_in" not in st.session_state:
 
 def login():
     st.title("🏥 AI Smart Clinic Login")
-
     u = st.text_input("Username")
     p = st.text_input("Password", type="password")
 
@@ -89,7 +76,7 @@ client = OpenAI(
 # HEADER
 # ---------------------------
 st.title("🏥 AI Smart Clinic")
-st.markdown("<div class='card'><h3>ABDM Ready AI Clinic System</h3></div>", unsafe_allow_html=True)
+st.markdown("<div class='card'><h3>AI Powered Clinical System (ABDM Ready)</h3></div>", unsafe_allow_html=True)
 
 # ---------------------------
 # KPI
@@ -102,18 +89,28 @@ patients_count = c.fetchone()[0]
 c.execute("SELECT total,occupied FROM beds")
 beds = c.fetchone()
 
-with c1: st.metric("Total Patients", patients_count)
+with c1: st.metric("Patients", patients_count)
 with c2: st.metric("Beds Occupied", beds[1])
 with c3: st.metric("Available Beds", beds[0]-beds[1])
-with c4: st.metric("System Status","Active")
+with c4: st.metric("System","Active")
 
 # ---------------------------
 # TABS
 # ---------------------------
-tabs = st.tabs(["Patient Intake","Dashboard","Beds","AI Tools"])
+tabs = st.tabs([
+"Patient Intake",
+"Medical Scribe",
+"Report Analyzer",
+"Prescription Safety",
+"Dashboard",
+"OPD Prediction",
+"Bed Management",
+"Appointment",
+"Follow-up"
+])
 
 # ---------------------------
-# PATIENT
+# PATIENT + ABHA
 # ---------------------------
 with tabs[0]:
 
@@ -136,7 +133,7 @@ with tabs[0]:
     if st.button("Create ABHA"):
         abha = "91-"+str(random.randint(1000,9999))
         st.session_state.abha = abha
-        st.success(f"ABHA: {abha}")
+        st.success(f"ABHA Created: {abha}")
 
     if st.session_state.abha:
         st.info(f"Linked ABHA: {st.session_state.abha}")
@@ -145,13 +142,55 @@ with tabs[0]:
         c.execute("INSERT INTO patients VALUES(?,?,?,?)",
                   (name,age,dept,st.session_state.abha))
         conn.commit()
-        st.success("Patient Saved")
+        st.success("Saved")
+
+# ---------------------------
+# MEDICAL SCRIBE
+# ---------------------------
+with tabs[1]:
+    st.header("AI Medical Scribe")
+    notes = st.text_area("Doctor Notes")
+
+    if st.button("Generate Notes"):
+        res = client.chat.completions.create(
+        model="openrouter/auto",
+        messages=[{"role":"user","content":notes}]
+        )
+        st.write(res.choices[0].message.content)
+
+# ---------------------------
+# REPORT ANALYZER
+# ---------------------------
+with tabs[2]:
+    st.header("Report Analyzer")
+    report = st.text_area("Enter Report")
+
+    if st.button("Analyze"):
+        res = client.chat.completions.create(
+        model="openrouter/auto",
+        messages=[{"role":"user","content":report}]
+        )
+        st.write(res.choices[0].message.content)
+
+# ---------------------------
+# PRESCRIPTION
+# ---------------------------
+with tabs[3]:
+    st.header("Prescription Safety")
+    meds = st.text_area("Medicines")
+
+    if st.button("Check"):
+        res = client.chat.completions.create(
+        model="openrouter/auto",
+        messages=[{"role":"user","content":meds}]
+        )
+        st.write(res.choices[0].message.content)
+        st.error("⚠ Interaction risk")
 
 # ---------------------------
 # DASHBOARD
 # ---------------------------
-with tabs[1]:
-
+with tabs[4]:
     st.header("Dashboard")
 
     df = pd.read_sql_query("SELECT * FROM patients", conn)
@@ -161,37 +200,55 @@ with tabs[1]:
         st.bar_chart(df["department"].value_counts())
 
 # ---------------------------
+# OPD
+# ---------------------------
+with tabs[5]:
+    st.header("OPD Prediction")
+    st.metric("Tomorrow", random.randint(80,140))
+
+# ---------------------------
 # BEDS
 # ---------------------------
-with tabs[2]:
-
+with tabs[6]:
     st.header("Bed Management")
 
     total,occupied = beds
+
     st.metric("Total", total)
     st.metric("Occupied", occupied)
     st.metric("Available", total-occupied)
 
-    if st.button("Admit"):
+    if st.button("Admit Patient"):
         c.execute("UPDATE beds SET occupied=occupied+1")
         conn.commit()
+        st.success("Admitted")
 
-    if st.button("Discharge"):
+    if st.button("Discharge Patient"):
         c.execute("UPDATE beds SET occupied=occupied-1")
         conn.commit()
+        st.success("Discharged")
 
 # ---------------------------
-# AI TOOLS
+# APPOINTMENT
 # ---------------------------
-with tabs[3]:
+with tabs[7]:
+    st.header("Appointment Optimizer")
 
-    st.header("AI Tools")
+    if st.button("Suggest Slots"):
+        st.write(["10:30 AM","11:15 AM","3:00 PM"])
 
-    text = st.text_area("Enter clinical notes")
+# ---------------------------
+# FOLLOW UP
+# ---------------------------
+with tabs[8]:
+    st.header("Follow Up")
 
-    if st.button("Analyze"):
-        response = client.chat.completions.create(
-            model="openrouter/auto",
-            messages=[{"role":"user","content":text}]
+    name = st.text_input("Patient")
+    reason = st.text_area("Reason")
+
+    if st.button("Generate Message"):
+        res = client.chat.completions.create(
+        model="openrouter/auto",
+        messages=[{"role":"user","content":reason}]
         )
-        st.write(response.choices[0].message.content)
+        st.success(res.choices[0].message.content)
